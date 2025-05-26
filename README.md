@@ -1,6 +1,32 @@
-# Getting Started with Create React App
+# DogoWalker - Dog Owners Social Platform
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+DogoWalker is a web application designed for dog owners to connect with other dog owners, find dog-related services, and share walking spots. The platform functions similarly to social meeting apps but is specifically tailored for dog owners who want to find walking companions for their pets.
+
+## Technical Stack
+
+### Frontend
+- React with TypeScript
+- Tailwind CSS for styling
+- Material Icons
+- React Router for navigation
+- React Leaflet for map features
+
+### Backend
+- Firebase Authentication
+- Firestore Database
+- Firebase Storage (for images)
+- Firebase Realtime Database (for real-time location updates)
+
+## Setup Instructions
+
+1. Clone the repository
+2. Install dependencies:
+   ```
+   npm install
+   ```
+3. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+4. Create a `.env` file in the project root (use `.env.example` as a template)
+5. Add your Firebase configuration details to the `.env` file
 
 ## Available Scripts
 
@@ -16,8 +42,7 @@ You will also see any lint errors in the console.
 
 ### `npm test`
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Launches the test runner in the interactive watch mode.
 
 ### `npm run build`
 
