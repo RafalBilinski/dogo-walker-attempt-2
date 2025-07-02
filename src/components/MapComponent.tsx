@@ -52,9 +52,9 @@ const MapComponent: React.FC = () => {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [filters, setFilters] = useState({
-    walkingSpots: true,
-    services: true,
-    friends: true
+    walkingSpots: false,
+    services: false,
+    friends: false
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newLocation, setNewLocation] = useState({
@@ -82,8 +82,7 @@ const MapComponent: React.FC = () => {
     
     // Load map data
     if (currentUser) {
-      loadMapData();
-      
+      loadMapData();      
     }
   }, [currentUser]);
 
@@ -179,12 +178,11 @@ const MapComponent: React.FC = () => {
     }
   }, [currentUser, isBusinessAccount, userData]);
 
+
   const handleMapClick = (e: any) => {
-    if (!currentUser) return;
-    
+    if (!currentUser) return;    
     const position: [number, number] = [e.latlng.lat, e.latlng.lng];
-    setSelectedPosition(position);
-    setIsModalOpen(true);
+    setSelectedPosition(position);    
   };
 
   const addWalkingSpot = async () => {
@@ -260,7 +258,7 @@ const MapComponent: React.FC = () => {
 
   return (
     <div className=" h-96 relative ">
-      <div className="absolute top-4 right-4 z-999 bg-white p-2 rounded shadow-md">
+      <div className="absolute top-4 right-4 z-50 bg-white p-2 rounded shadow-md">
         <h3 className="font-semibold mb-2">Map Layers</h3>
         <div className="flex flex-col gap-2">
           <label className="flex items-center">
@@ -304,7 +302,7 @@ const MapComponent: React.FC = () => {
       </div>
       
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-4 rounded max-w-md w-full">
             <h3 className="text-xl font-bold mb-4">
               {isBusinessAccount ? 'Add Business Location' : 'Add Walking Spot'}
@@ -377,7 +375,7 @@ const MapComponent: React.FC = () => {
       <MapContainer
         center={userLocation}
         zoom={14}
-        style={{ height: '100%', width: '100%' }}
+        style={{ height: '100%', width: '100%', zIndex: '10',}}
       >
         {/* Custom component to handle map events */}
         <MapEvents onMapClick={handleMapClick} />
@@ -386,11 +384,16 @@ const MapComponent: React.FC = () => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         
-        {/* User location marker */}
-        <Marker position={userLocation} icon={defaultIcon}>
+        {(isBusinessAccount && selectedPosition) ? (        
+        <Marker position={selectedPosition} icon={defaultIcon}> {/* User selected location marker */}
           <Popup>You are here</Popup>
         </Marker>
-        
+        ) : (
+          <Marker position={userLocation} icon={defaultIcon}> {/* User location marker */}
+          <Popup>You are here</Popup>
+        </Marker>
+        )}
+
         {/* Dynamic location centering */}
         <LocationMarker position={userLocation} />
         

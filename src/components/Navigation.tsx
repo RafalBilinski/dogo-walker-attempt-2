@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
+
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -154,4 +155,4 @@ const Navigation: React.FC = () => {
   );
 };
 
-export default Navigation;
+export default memo(Navigation);

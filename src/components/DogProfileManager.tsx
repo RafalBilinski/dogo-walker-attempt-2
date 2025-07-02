@@ -8,7 +8,7 @@ import { Dog } from '../types';
 const DogProfileManager: React.FC = () => {
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [isAddingDog, setIsAddingDog] = useState(false);
-  const [currentDog, setCurrentDog] = useState<Dog>({
+  const emptyDogData={
     name: '',
     breed: '',
     age: 0,
@@ -18,7 +18,8 @@ const DogProfileManager: React.FC = () => {
     photoURL: '',
     notes: '',
     ownerId: ''
-  });
+  }
+  const [currentDog, setCurrentDog] = useState<Dog>( emptyDogData );
   const [photo, setPhoto] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { currentUser } = useAuth();
@@ -105,17 +106,7 @@ const DogProfileManager: React.FC = () => {
   };
 
   const resetForm = () => {
-    setCurrentDog({
-      name: '',
-      breed: '',
-      age: 0,
-      gender: '',
-      size: '',
-      temperament: '',
-      photoURL: '',
-      notes: '',
-      ownerId: ''
-    });
+    setCurrentDog( emptyDogData );
     setPhoto(null);
   };
 
