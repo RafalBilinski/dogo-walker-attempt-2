@@ -1,5 +1,4 @@
 import React, { useState, memo } from 'react';
-
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -20,17 +19,19 @@ const Navigation: React.FC = () => {
     return location.pathname === path;
   };
 
-  const navItems = currentUser ? [
-    { path: '/map', label: 'Map', icon: 'map' },
-    { path: '/find-buddy', label: 'Find Buddies', icon: 'people' },
-    { path: '/profile', label: 'Profile', icon: 'person' },
-    { path: '/settings', label: 'Settings', icon: 'settings' },
-  ] : [
-    { path: '/', label: 'Home', icon: 'home' },
-    { path: '/login', label: 'Login', icon: 'login' },
-  ];
+  const navItems = currentUser
+    ? [
+        { path: '/map', label: 'Map', icon: 'map' },
+        { path: '/find-buddy', label: 'Find Buddies', icon: 'people' },
+        { path: '/profile', label: 'Profile', icon: 'person' },
+        { path: '/settings', label: 'Settings', icon: 'settings' },
+      ]
+    : [
+        { path: '/', label: 'Home', icon: 'home' },
+        { path: '/login', label: 'Login', icon: 'login' },
+      ];
 
-  console.log(currentUser);  
+  console.log(currentUser);
   return (
     <nav className="bg-white border-b">
       <div className="container mx-auto px-4">
@@ -50,9 +51,11 @@ const Navigation: React.FC = () => {
                   key={item.path}
                   to={item.path}
                   className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium h-full
-                    ${isActive(item.path) 
-                      ? 'border-blue-500 text-gray-900' 
-                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}
+                    ${
+                      isActive(item.path)
+                        ? 'border-blue-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                    }`}
                 >
                   <span className="material-icons text-sm mr-1">{item.icon}</span>
                   {item.label}
@@ -76,9 +79,9 @@ const Navigation: React.FC = () => {
                   </div>
                   <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-200">
                     {userData?.photoURL ? (
-                      <img 
-                        src={userData.photoURL} 
-                        alt={userData.displayName || 'Profile'} 
+                      <img
+                        src={userData.photoURL}
+                        alt={userData.displayName || 'Profile'}
                         className="h-full w-full object-cover"
                       />
                     ) : (
@@ -88,7 +91,7 @@ const Navigation: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={handleLogout}
                   className="ml-4 px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
                 >
@@ -104,9 +107,7 @@ const Navigation: React.FC = () => {
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none"
             >
-              <span className="material-icons">
-                {mobileMenuOpen ? 'close' : 'menu'}
-              </span>
+              <span className="material-icons">{mobileMenuOpen ? 'close' : 'menu'}</span>
             </button>
           </div>
         </div>
@@ -133,8 +134,8 @@ const Navigation: React.FC = () => {
                 </span>
               </Link>
             ))}
-            
-            {(currentUser !== null) && (
+
+            {currentUser !== null && (
               <button
                 onClick={() => {
                   handleLogout();

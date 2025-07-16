@@ -1,22 +1,50 @@
+import { GeoPoint } from '@firebase/firestore';
+import { User as FirebaseUser } from '@firebase/auth';
+type accountType = 'personal' | 'business';
+type businessType =
+  | 'veterinary'
+  | 'grooming'
+  | 'petStore'
+  | 'dogTraining'
+  | 'dogWalking'
+  | 'petFriendlyCafe'
+  | 'petHotel'
+  | 'other';
+
 // User related types
 export interface User {
   uid: string;
   email: string;
   displayName?: string;
   photoURL?: string;
-  accountType: 'personal' | 'business';
+  accountType: accountType;
   bio?: string;
   age?: number;
   location?: {
-    latitude: number;
-    longitude: number;
+    position: GeoPoint & {};
     lastUpdated: Date;
   };
 }
 
+export interface AuthContextType {
+  currentUser: (FirebaseUser & {}) | null;
+  userData: (User & {}) | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    accountType: 'personal' | 'business'
+  ) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
+  updateUserProfile: (data: Partial<User>) => Promise<void>;
+  updateUserLocation: (userLocation: GeoPoint) => Promise<void>;
+}
+
 export interface UserSettings {
   locationVisibility: 'everyone' | 'friends' | 'none';
-  profileVisibility: 'everyone' | 'friends';
+  profileVisibility: 'everyone' | 'friends' | 'none';
   defaultTab: 'map' | 'findBuddy' | 'profile';
   notificationsEnabled: boolean;
   emailNotifications: boolean;
@@ -29,7 +57,7 @@ export interface NearbyUser {
   photoURL?: string;
   distance: number;
   lastActive: Date;
-  accountType: 'personal' | 'business';
+  accountType: accountType & {};
   dogs: {
     id: string;
     name: string;
@@ -37,7 +65,6 @@ export interface NearbyUser {
     photoURL?: string;
   }[];
 }
-
 
 // Dog related types
 export interface Dog {
@@ -58,10 +85,10 @@ export interface Location {
   id: string;
   type: 'walkingSpot' | 'service' | 'friend';
   name: string;
-  position: [number, number];
+  position: GeoPoint & {};
   description?: string;
   approved?: boolean;
-  businessType?: string;
+  businessType?: businessType & {};
   userId?: string;
 }
 

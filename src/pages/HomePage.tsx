@@ -10,23 +10,21 @@ const HomePage: React.FC = () => {
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-blue-800">
-              DogoWalker
-            </h1>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 text-blue-800">DogoWalker</h1>
             <p className="text-xl md:text-2xl text-gray-700 mb-8">
               Connect with other dog owners, find walking buddies, and discover dog-friendly places
             </p>
-            
+
             {!currentUser ? (
-              <Link 
-                to="/login" 
+              <Link
+                to="/login"
                 className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-md"
               >
                 Get Started
               </Link>
-            ) : 
-            (<></>)
-            }
+            ) : (
+              <></>
+            )}
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 mb-16">
@@ -36,21 +34,21 @@ const HomePage: React.FC = () => {
               </div>
               <h2 className="text-xl font-bold mb-2">Find Walking Spots</h2>
               <p className="text-gray-600 block">
-                Discover the best dog-friendly parks, trails, and walking areas near you, contributed by other dog owners.
+                Discover the best dog-friendly parks, trails, and walking areas near you,
+                contributed by other dog owners.
               </p>
-              <div className='flex items-center'>              
-                {currentUser?(
-                  <Link 
-                  to="/map" 
-                  className=" w-fit mx-auto mt-4 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-md"
+              <div className="flex items-center">
+                {currentUser ? (
+                  <Link
+                    to="/map"
+                    className=" w-fit mx-auto mt-4 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-md"
                   >
-                  Open Map
+                    Open Map
                   </Link>
-                ):(
+                ) : (
                   <></>
                 )}
               </div>
-
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition">
@@ -59,7 +57,8 @@ const HomePage: React.FC = () => {
               </div>
               <h2 className="text-xl font-bold mb-2">Meet Walking Buddies</h2>
               <p className="text-gray-600">
-                Connect with other dog owners nearby and find walking companions for you and your furry friend.
+                Connect with other dog owners nearby and find walking companions for you and your
+                furry friend.
               </p>
             </div>
 
@@ -69,12 +68,15 @@ const HomePage: React.FC = () => {
               </div>
               <h2 className="text-xl font-bold mb-2">Manage Dog Profiles</h2>
               <p className="text-gray-600">
-                Create profiles for your dogs, showcase their personalities, and keep track of their information.
+                Create profiles for your dogs, showcase their personalities, and keep track of their
+                information.
               </p>
             </div>
           </div>
 
-          {currentUser? (<></>) : (
+          {currentUser ? (
+            <></>
+          ) : (
             <div className="bg-white p-8 rounded-lg shadow-md">
               <h2 className="text-2xl font-bold mb-4 text-center">How It Works</h2>
 
@@ -88,7 +90,7 @@ const HomePage: React.FC = () => {
                     Sign up and create your profile as a dog owner or a business.
                   </p>
                 </div>
-                
+
                 <div className="text-center">
                   <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
                     <span className="font-bold text-blue-600">2</span>
@@ -98,7 +100,7 @@ const HomePage: React.FC = () => {
                     Create profiles for each of your dogs with photos and details.
                   </p>
                 </div>
-                
+
                 <div className="text-center">
                   <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
                     <span className="font-bold text-blue-600">3</span>
@@ -108,7 +110,7 @@ const HomePage: React.FC = () => {
                     Find walking spots, services, and potential walking buddies.
                   </p>
                 </div>
-                
+
                 <div className="text-center">
                   <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
                     <span className="font-bold text-blue-600">4</span>
@@ -121,17 +123,15 @@ const HomePage: React.FC = () => {
               </div>
               <div className="mt-16 text-center">
                 <h2 className="text-2xl font-bold mb-6">Ready to join our dog-loving community?</h2>
-                  <Link 
-                    to="/login" 
-                    className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-md"
-                  >
-                    Sign Up Now
-                  </Link>
+                <Link
+                  to="/login"
+                  className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition shadow-md"
+                >
+                  Sign Up Now
+                </Link>
               </div>
             </div>
           )}
-
-
         </div>
       </div>
     </div>

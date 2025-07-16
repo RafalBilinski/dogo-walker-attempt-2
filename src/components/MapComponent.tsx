@@ -17,7 +17,7 @@ const defaultIcon = new Icon({
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
   iconSize: [25, 41],
-  iconAnchor: [12, 41]
+  iconAnchor: [12, 41],
 });
 
 // Will be implemented with custom icons for different location types
@@ -38,60 +38,72 @@ const MapEvents: React.FC<MapEventsProps> = ({ onMapClick }) => {
 };
 
 // Component to recenter map when user location changes
-const LocationMarker: React.FC<{position: [number, number]}> = ({ position }) => {
+const LocationMarker: React.FC<{ position: GeoPoint | [number, number] }> = ({ position }) => {
   const map = useMap();
-  
+
   useEffect(() => {
-    map.flyTo(position, 14);
+    // Convert GeoPoint to [lat, lng] array if needed for the map
+    const mapPosition =
+      position instanceof GeoPoint
+        ? ([position.latitude, position.longitude] as [number, number])
+        : position;
+
+    map.flyTo(mapPosition, 14);
   }, [map, position]);
-  
+
   return null;
 };
 
 const MapComponent: React.FC = () => {
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [userLocation, setUserLocation] = useState<GeoPoint | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [filters, setFilters] = useState({
     walkingSpots: false,
     services: false,
-    friends: false
+    friends: false,
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newLocation, setNewLocation] = useState({
+  const [newLocation, setNewLocation] = useState<Partial<Location>>({
     name: '',
     description: '',
-    businessType: ''
+    businessType: undefined,
   });
-  const [selectedPosition, setSelectedPosition] = useState<[number, number] | null>(null);
-  
-  const { currentUser, userData } = useAuth();
+  const [selectedPosition, setSelectedPosition] = useState<GeoPoint | null>(null);
+
+  const { currentUser, userData, updateUserLocation } = useAuth();
   const isBusinessAccount = userData?.accountType === 'business';
 
   useEffect(() => {
     // Get user's current location
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation([position.coords.latitude, position.coords.longitude]);
+      async (position) => {
+        const location = new GeoPoint(position.coords.latitude, position.coords.longitude);
+        setUserLocation(location);
+
+        // Update user location in Firestore if user is logged in
+        if (currentUser) {
+          await updateUserLocation(location);
+        }
       },
       (error) => {
         console.error('Error getting location:', error);
-        // Default location if geolocation fails (e.g., Warsaw, Poland)
-        setUserLocation([52.237049, 21.017532]);
+        const defaultLocation = new GeoPoint(52.237049, 21.017532); // Default location if geolocation fails (e.g., Warsaw, Poland)
+        setUserLocation(defaultLocation);
       }
     );
-    
+
     // Load map data
     if (currentUser) {
-      loadMapData();      
+      loadMapData();
     }
-  }, [currentUser]);
+  }, [currentUser, updateUserLocation]);
 
   const loadMapData = useCallback(async () => {
     if (!currentUser) return;
-    
+
     try {
       const locationsArray: Location[] = [];
-      
+
       // Load walking spots
       const walkingSpotsQuery = query(
         collection(db, 'locations'),
@@ -99,37 +111,32 @@ const MapComponent: React.FC = () => {
         where('approved', '==', true)
       );
       const walkingSpotsSnapshot = await getDocs(walkingSpotsQuery);
-      walkingSpotsSnapshot.forEach(doc => {
+      walkingSpotsSnapshot.forEach((doc) => {
         const data = doc.data();
-        const geoPoint = data.position as GeoPoint;
         locationsArray.push({
           id: doc.id,
           type: 'walkingSpot',
           name: data.name,
-          position: [geoPoint.latitude, geoPoint.longitude],
-          description: data.description
+          position: data.position as GeoPoint,
+          description: data.description,
         });
       });
-      
+
       // Load services
-      const servicesQuery = query(
-        collection(db, 'locations'),
-        where('type', '==', 'service')
-      );
+      const servicesQuery = query(collection(db, 'locations'), where('type', '==', 'service'));
       const servicesSnapshot = await getDocs(servicesQuery);
-      servicesSnapshot.forEach(doc => {
+      servicesSnapshot.forEach((doc) => {
         const data = doc.data();
-        const geoPoint = data.position as GeoPoint;
         locationsArray.push({
           id: doc.id,
           type: 'service',
           name: data.name,
-          position: [geoPoint.latitude, geoPoint.longitude],
+          position: data.position as GeoPoint,
           description: data.description,
-          businessType: data.businessType
+          businessType: data.businessType,
         });
       });
-      
+
       // Load friends (if personal account)
       if (!isBusinessAccount && userData) {
         // Get user's friends
@@ -139,7 +146,7 @@ const MapComponent: React.FC = () => {
           where('status', '==', 'accepted')
         );
         const friendsSnapshot = await getDocs(friendsQuery);
-        
+
         // Get friend locations
         for (const friendDoc of friendsSnapshot.docs) {
           const friendId = friendDoc.data().friendId;
@@ -148,57 +155,53 @@ const MapComponent: React.FC = () => {
             where('userId', '==', friendId)
           );
           const friendLocationSnapshot = await getDocs(friendLocationQuery);
-          
+
           if (!friendLocationSnapshot.empty) {
             const locationData = friendLocationSnapshot.docs[0].data();
-            const geoPoint = locationData.position as GeoPoint;
-            const friendUserQuery = query(
-              collection(db, 'users'),
-              where('uid', '==', friendId)
-            );
+            const friendUserQuery = query(collection(db, 'users'), where('uid', '==', friendId));
             const friendUserSnapshot = await getDocs(friendUserQuery);
-            const friendName = !friendUserSnapshot.empty 
-              ? friendUserSnapshot.docs[0].data().displayName 
+            const friendName = !friendUserSnapshot.empty
+              ? friendUserSnapshot.docs[0].data().displayName
               : 'Unknown Friend';
-            
+
             locationsArray.push({
               id: friendLocationSnapshot.docs[0].id,
               type: 'friend',
               name: friendName,
-              position: [geoPoint.latitude, geoPoint.longitude],
-              userId: friendId
+              position: locationData.position as GeoPoint,
+              userId: friendId,
             });
           }
         }
       }
-      
+
       setLocations(locationsArray);
     } catch (error) {
       console.error('Error loading map data:', error);
     }
   }, [currentUser, isBusinessAccount, userData]);
 
-
   const handleMapClick = (e: any) => {
-    if (!currentUser) return;    
-    const position: [number, number] = [e.latlng.lat, e.latlng.lng];
-    setSelectedPosition(position);    
+    if (!currentUser) return;
+    const position = new GeoPoint(e.latlng.lat, e.latlng.lng);
+    setSelectedPosition(position);
+    console.log('New position selected : ', position);
   };
 
   const addWalkingSpot = async () => {
     if (!currentUser || !selectedPosition) return;
-    
+
     try {
       await addDoc(collection(db, 'locations'), {
         type: 'walkingSpot',
         name: newLocation.name,
-        position: new GeoPoint(selectedPosition[0], selectedPosition[1]),
+        position: selectedPosition, // Already a GeoPoint
         description: newLocation.description,
         userId: currentUser.uid,
         approved: false,
-        createdAt: new Date()
+        createdAt: new Date(),
       });
-      
+
       alert('Walking spot submitted for approval!');
       resetForm();
     } catch (error) {
@@ -208,18 +211,18 @@ const MapComponent: React.FC = () => {
 
   const addBusinessLocation = async () => {
     if (!currentUser || !isBusinessAccount || !selectedPosition) return;
-    
+
     try {
       await addDoc(collection(db, 'locations'), {
         type: 'service',
         name: newLocation.name,
-        position: new GeoPoint(selectedPosition[0], selectedPosition[1]),
+        position: selectedPosition, // Already a GeoPoint
         businessType: newLocation.businessType,
         description: newLocation.description,
         userId: currentUser.uid,
-        createdAt: new Date()
+        createdAt: new Date(),
       });
-      
+
       alert('Business location added successfully!');
       resetForm();
       loadMapData();
@@ -234,13 +237,13 @@ const MapComponent: React.FC = () => {
     setNewLocation({
       name: '',
       description: '',
-      businessType: ''
+      businessType: undefined,
     });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (isBusinessAccount) {
       addBusinessLocation();
     } else {
@@ -265,7 +268,7 @@ const MapComponent: React.FC = () => {
             <input
               type="checkbox"
               checked={filters.walkingSpots}
-              onChange={() => setFilters({...filters, walkingSpots: !filters.walkingSpots})}
+              onChange={() => setFilters({ ...filters, walkingSpots: !filters.walkingSpots })}
               className="mr-2"
             />
             Walking Spots
@@ -274,7 +277,7 @@ const MapComponent: React.FC = () => {
             <input
               type="checkbox"
               checked={filters.services}
-              onChange={() => setFilters({...filters, services: !filters.services})}
+              onChange={() => setFilters({ ...filters, services: !filters.services })}
               className="mr-2"
             />
             Dog Services
@@ -284,14 +287,14 @@ const MapComponent: React.FC = () => {
               <input
                 type="checkbox"
                 checked={filters.friends}
-                onChange={() => setFilters({...filters, friends: !filters.friends})}
+                onChange={() => setFilters({ ...filters, friends: !filters.friends })}
                 className="mr-2"
               />
               Friends
             </label>
           )}
         </div>
-        
+
         <button
           onClick={() => setIsModalOpen(true)}
           className="mt-4 w-full p-2 bg-blue-600 text-white rounded flex items-center justify-center hover:bg-blue-700 transition"
@@ -300,32 +303,37 @@ const MapComponent: React.FC = () => {
           {isBusinessAccount ? 'Add Business' : 'Add Walking Spot'}
         </button>
       </div>
-      
+
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-4 rounded max-w-md w-full">
             <h3 className="text-xl font-bold mb-4">
               {isBusinessAccount ? 'Add Business Location' : 'Add Walking Spot'}
             </h3>
-            
+
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
                 <label className="block mb-1">Name</label>
                 <input
                   type="text"
                   value={newLocation.name}
-                  onChange={(e) => setNewLocation({...newLocation, name: e.target.value})}
+                  onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
                   className="w-full p-2 border rounded"
                   required
                 />
               </div>
-              
+
               {isBusinessAccount && (
                 <div className="mb-3">
                   <label className="block mb-1">Business Type</label>
                   <select
                     value={newLocation.businessType}
-                    onChange={(e) => setNewLocation({...newLocation, businessType: e.target.value})}
+                    onChange={(e) =>
+                      setNewLocation({
+                        ...newLocation,
+                        businessType: e.target.value as Location['businessType'],
+                      })
+                    }
                     className="w-full p-2 border rounded"
                     required
                   >
@@ -335,23 +343,24 @@ const MapComponent: React.FC = () => {
                     <option value="petStore">Pet Store</option>
                     <option value="dogTraining">Dog Training</option>
                     <option value="dogWalking">Dog Walking Service</option>
-                    <option value="dogFriendlyCafe">Dog-Friendly Café</option>
+                    <option value="petFriendlyCafe">Pet-Friendly Café</option>
+                    <option value="petHotel">Pet Hotel</option>
                     <option value="other">Other</option>
                   </select>
                 </div>
               )}
-              
+
               <div className="mb-4">
                 <label className="block mb-1">Description</label>
                 <textarea
                   value={newLocation.description}
-                  onChange={(e) => setNewLocation({...newLocation, description: e.target.value})}
+                  onChange={(e) => setNewLocation({ ...newLocation, description: e.target.value })}
                   className="w-full p-2 border rounded"
                   rows={3}
                   required
                 ></textarea>
               </div>
-              
+
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
@@ -371,11 +380,11 @@ const MapComponent: React.FC = () => {
           </div>
         </div>
       )}
-      
+
       <MapContainer
-        center={userLocation}
+        center={[userLocation.latitude, userLocation.longitude]}
         zoom={14}
-        style={{ height: '100%', width: '100%', zIndex: '10',}}
+        style={{ height: '100%', width: '100%', zIndex: '10' }}
       >
         {/* Custom component to handle map events */}
         <MapEvents onMapClick={handleMapClick} />
@@ -383,45 +392,52 @@ const MapComponent: React.FC = () => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-        
-        {(isBusinessAccount && selectedPosition) ? (        
-        <Marker position={selectedPosition} icon={defaultIcon}> {/* User selected location marker */}
-          <Popup>You are here</Popup>
-        </Marker>
+
+        {selectedPosition ? (
+          <Marker
+            position={[selectedPosition.latitude, selectedPosition.longitude]}
+            icon={defaultIcon}
+          >
+            {' '}
+            {/* User selected location marker */}
+            <Popup>You are here</Popup>
+          </Marker>
         ) : (
-          <Marker position={userLocation} icon={defaultIcon}> {/* User location marker */}
-          <Popup>You are here</Popup>
-        </Marker>
+          <Marker position={[userLocation.latitude, userLocation.longitude]} icon={defaultIcon}>
+            {' '}
+            {/* User location marker */}
+            <Popup>You are here</Popup>
+          </Marker>
         )}
 
         {/* Dynamic location centering */}
         <LocationMarker position={userLocation} />
-        
+
         {/* Display filtered locations */}
-        {locations.filter(location => {
-          if (location.type === 'walkingSpot') return filters.walkingSpots;
-          if (location.type === 'service') return filters.services;
-          if (location.type === 'friend') return filters.friends;
-          return false;
-        }).map(location => (
-          <Marker
-            key={location.id}
-            position={location.position}
-            icon={getMarkerIcon(location.type)}
-          >
-            <Popup>
-              <div>
-                <h3 className="font-semibold">{location.name}</h3>
-                {location.type === 'service' && location.businessType && (
-                  <p className="text-sm text-gray-600">{location.businessType}</p>
-                )}
-                {location.description && (
-                  <p className="mt-1">{location.description}</p>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        {locations
+          .filter((location) => {
+            if (location.type === 'walkingSpot') return filters.walkingSpots;
+            if (location.type === 'service') return filters.services;
+            if (!isBusinessAccount && location.type === 'friend') return filters.friends;
+            return false;
+          })
+          .map((location) => (
+            <Marker
+              key={location.id}
+              position={[location.position.latitude, location.position.longitude]}
+              icon={getMarkerIcon(location.type)}
+            >
+              <Popup>
+                <div>
+                  <h3 className="font-semibold">{location.name}</h3>
+                  {location.type === 'service' && location.businessType && (
+                    <p className="text-sm text-gray-600">{location.businessType}</p>
+                  )}
+                  {location.description && <p className="mt-1">{location.description}</p>}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
       </MapContainer>
     </div>
   );

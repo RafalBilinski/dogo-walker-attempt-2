@@ -1,26 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { 
-  User as FirebaseUser, 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signInWithPopup, 
-  signOut 
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
 } from 'firebase/auth';
 import { auth, googleProvider, db } from '../firebase/config';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { User } from '../types';
-
-interface AuthContextType {
-  currentUser: FirebaseUser | null;
-  userData: User | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, accountType: 'personal' | 'business') => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
-  logout: () => Promise<void>;
-  updateUserProfile: (data: Partial<User>) => Promise<void>;
-}
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, GeoPoint } from 'firebase/firestore';
+import { User, AuthContextType } from '../types';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -37,25 +25,25 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthContextType['currentUser']>(null);
   const [userData, setUserData] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
-    
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!isMounted) return;
-      
+
       try {
         setCurrentUser(user);
-        
+
         if (user) {
           // Fetch additional user data from Firestore
           try {
             const userDocRef = doc(db, 'users', user.uid);
             const userDoc = await getDoc(userDocRef);
-            
+
             if (isMounted && userDoc.exists()) {
               setUserData(userDoc.data() as User);
             }
@@ -73,7 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
     });
-    
+
     return () => {
       isMounted = false;
       unsubscribe();
@@ -84,10 +72,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await signInWithEmailAndPassword(auth, email, password);
   };
 
-  const register = async (email: string, password: string, accountType: 'personal' | 'business') => {
+  const register = async (
+    email: string,
+    password: string,
+    accountType: 'personal' | 'business'
+  ) => {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     const user = credential.user;
-    
+
     // Create user profile in Firestore
     await setDoc(doc(db, 'users', user.uid), {
       uid: user.uid,
@@ -95,9 +87,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       displayName: user.displayName || '',
       photoURL: user.photoURL || '',
       accountType,
-      createdAt: new Date()
+      createdAt: new Date(),
     });
-    
+
     // Create default user settings
     await setDoc(doc(db, 'userSettings', user.uid), {
       locationVisibility: 'everyone',
@@ -105,18 +97,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       defaultTab: 'map',
       notificationsEnabled: true,
       emailNotifications: true,
-      showOnlineStatus: true
+      showOnlineStatus: true,
     });
   };
 
   const loginWithGoogle = async () => {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
-    
+
     // Check if this is a new user
     const userDocRef = doc(db, 'users', user.uid);
     const userDoc = await getDoc(userDocRef);
-    
+
     if (!userDoc.exists()) {
       // This is a new user, so create their profile
       // We'll need to ask for account type after Google login
@@ -127,9 +119,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         displayName: user.displayName || '',
         photoURL: user.photoURL || '',
         accountType: 'personal',
-        createdAt: new Date()
+        createdAt: new Date(),
       });
-      
+
       // Create default user settings
       await setDoc(doc(db, 'userSettings', user.uid), {
         locationVisibility: 'everyone',
@@ -137,7 +129,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         defaultTab: 'map',
         notificationsEnabled: true,
         emailNotifications: true,
-        showOnlineStatus: true
+        showOnlineStatus: true,
       });
     }
   };
@@ -148,13 +140,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updateUserProfile = async (data: Partial<User>) => {
     if (!currentUser) return;
-    
+
     const userDocRef = doc(db, 'users', currentUser.uid);
     await setDoc(userDocRef, data, { merge: true });
-    
+
     // Update local state
     if (userData) {
       setUserData({ ...userData, ...data });
+    }
+  };
+
+  const updateUserLocation = async (userLocation: GeoPoint) => {
+    if (!currentUser) return;
+
+    try {
+      const userLocationRef = doc(db, 'userLocations', currentUser.uid);
+      const locationData = {
+        userId: currentUser.uid,
+        position: userLocation,
+        lastUpdated: new Date(),
+        // Add user metadata for easier querying
+        displayName: userData?.displayName || 'Anonymous',
+        accountType: userData?.accountType || 'personal',
+        photoURL: userData?.photoURL || null,
+        updatedAt: new Date(),
+      };
+
+      // Use setDoc with merge: true to create or update the document
+      await setDoc(userLocationRef, locationData, { merge: true });
+
+      // Also update the user's location in the users collection
+      if (userData) {
+        const userRef = doc(db, 'users', currentUser.uid);
+        await updateDoc(userRef, {
+          'location.position': userLocation,
+          'location.lastUpdated': serverTimestamp(),
+        });
+      }
+    } catch (error) {
+      console.error('Error updating user location:', error);
     }
   };
 
@@ -166,12 +190,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     loginWithGoogle,
     logout,
-    updateUserProfile
+    updateUserProfile,
+    updateUserLocation,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
 };

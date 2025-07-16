@@ -28,29 +28,41 @@ const App = () => {
                 {/* Public routes */}
                 <Route path="/" element={<HomePage />} />
                 <Route path="/login" element={<LoginPage />} />
-                
+
                 {/* Protected routes */}
-                <Route path="/profile" element={
-                  <ProtectedRoute>
-                    <ProfilePage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/map" element={
-                  <ProtectedRoute>
-                    <MapComponent />
-                  </ProtectedRoute>
-                } />
-                <Route path="/find-buddy" element={
-                  <ProtectedRoute>
-                    <FindBuddyPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/settings" element={
-                  <ProtectedRoute>
-                    <SettingsPage />
-                  </ProtectedRoute>
-                } />
-                
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/map"
+                  element={
+                    <ProtectedRoute>
+                      <MapComponent />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/find-buddy"
+                  element={
+                    <ProtectedRoute>
+                      <FindBuddyPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <SettingsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
                 {/* Fallback route */}
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
@@ -60,6 +72,6 @@ const App = () => {
       </Router>
     </div>
   );
-}
+};
 
 export default App;

@@ -1,34 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  collection, 
-  query, 
-  getDocs, 
-  where, 
-  orderBy, 
-  limit, 
-  GeoPoint, 
-  getDoc, 
-  doc, 
-  setDoc, 
-  updateDoc, 
-  serverTimestamp 
+import {
+  collection,
+  query,
+  getDocs,
+  where,
+  limit,
+  GeoPoint,
+  getDoc,
+  doc,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import { NearbyUser } from '../types/index';
 
-
 const FindBuddyPage: React.FC = () => {
   const [nearbyUsers, setNearbyUsers] = useState<NearbyUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-  const { currentUser, userData } = useAuth();
+  const [userLocation, setUserLocation] = useState<GeoPoint | null>(null);
+  const { currentUser, updateUserLocation } = useAuth();
 
   useEffect(() => {
     // Get user's current location
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setUserLocation([position.coords.latitude, position.coords.longitude]);
+        setUserLocation(new GeoPoint(position.coords.latitude, position.coords.longitude));
       },
       (error) => {
         console.error('Error getting location:', error);
@@ -39,11 +34,11 @@ const FindBuddyPage: React.FC = () => {
 
   const loadNearbyUsers = async () => {
     if (!currentUser || !userLocation) return;
-    
+
     try {
       // Update current user's location
-      await updateUserLocation();
-      
+      await updateCurrentUserLocation();
+
       // Find nearby users
       const usersQuery = query(
         collection(db, 'userLocations'),
@@ -52,31 +47,31 @@ const FindBuddyPage: React.FC = () => {
         // For this demo, we'll just fetch all and filter client-side
         limit(100)
       );
-      
+
       const usersSnapshot = await getDocs(usersQuery);
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      
+
       const nearbyUsersData: NearbyUser[] = [];
-      
+
       for (const userLocationDoc of usersSnapshot.docs) {
         const locationData = userLocationDoc.data();
         const lastActive = locationData.lastUpdated?.toDate() || new Date(0);
-        
+
         // Only include users who were active in the last hour
         if (lastActive >= oneHourAgo) {
           const userId = locationData.userId;
           const userDocRef = doc(db, 'users', userId);
           const userDoc = await getDoc(userDocRef);
-          
+
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            
+
             // Calculate distance (simplified for demo)
             const geoPoint = locationData.position as GeoPoint;
-            const userPos: [number, number] = [geoPoint.latitude, geoPoint.longitude];
+            const userPos: [number, number] = [geoPoint.latitude, geoPoint.longitude]; // Convert GeoPoint to array for distance calculation
             const distance = calculateDistance(userLocation, userPos);
-            
+
             // Fetch user's dogs
             const dogsQuery = query(
               collection(db, 'dogs'),
@@ -84,11 +79,11 @@ const FindBuddyPage: React.FC = () => {
               limit(3)
             );
             const dogsSnapshot = await getDocs(dogsQuery);
-            const dogs = dogsSnapshot.docs.map(doc => ({
+            const dogs = dogsSnapshot.docs.map((doc) => ({
               id: doc.id,
               ...doc.data(),
             }));
-            
+
             nearbyUsersData.push({
               uid: userId,
               displayName: userData.displayName || 'Dog Owner',
@@ -101,10 +96,10 @@ const FindBuddyPage: React.FC = () => {
           }
         }
       }
-      
+
       // Sort by distance
       nearbyUsersData.sort((a, b) => a.distance - b.distance);
-      
+
       setNearbyUsers(nearbyUsersData);
     } catch (error) {
       console.error('Error finding nearby users:', error);
@@ -119,49 +114,34 @@ const FindBuddyPage: React.FC = () => {
     }
   }, [currentUser, userLocation]);
 
-
-  const updateUserLocation = async () => {
+  // Helper function to use the shared updateUserLocation method
+  const updateCurrentUserLocation = async () => {
     if (!currentUser || !userLocation) return;
-    
     try {
-      const userLocationRef = doc(db, 'userLocations', currentUser.uid);
-      const locationData = {
-        userId: currentUser.uid,
-        position: new GeoPoint(userLocation[0], userLocation[1]),
-        lastUpdated: new Date(),
-        // Add user metadata for easier querying
-        displayName: userData?.displayName || 'Anonymous',
-        accountType: userData?.accountType || 'personal',
-        photoURL: userData?.photoURL || null,
-        updatedAt: new Date()
-      };
-      
-      // Use setDoc with merge: true to create or update the document
-      await setDoc(userLocationRef, locationData, { merge: true });
-      
-      // Also update the user's location in the users collection
-      if (userData) {
-        const userRef = doc(db, 'users', currentUser.uid);
-        await updateDoc(userRef, {
-          'location.position': new GeoPoint(userLocation[0], userLocation[1]),
-          'location.lastUpdated': serverTimestamp()
-        });
-      }
+      await updateUserLocation(userLocation);
     } catch (error) {
       console.error('Error updating user location:', error);
     }
   };
 
   // Calculate distance between two coordinates in kilometers
-  const calculateDistance = (pos1: [number, number], pos2: [number, number]): number => {
+  const calculateDistance = (pos1: GeoPoint | [number, number], pos2: GeoPoint | [number, number]): number => {
+    // Convert GeoPoint to [latitude, longitude] array if needed
+    const lat1 = pos1 instanceof GeoPoint ? pos1.latitude : pos1[0];
+    const lng1 = pos1 instanceof GeoPoint ? pos1.longitude : pos1[1];
+    const lat2 = pos2 instanceof GeoPoint ? pos2.latitude : pos2[0];
+    const lng2 = pos2 instanceof GeoPoint ? pos2.longitude : pos2[1];
+
     const R = 6371; // Earth's radius in km
-    const dLat = (pos2[0] - pos1[0]) * Math.PI / 180;
-    const dLon = (pos2[1] - pos1[1]) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(pos1[0] * Math.PI / 180) * Math.cos(pos2[0] * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
@@ -195,12 +175,13 @@ const FindBuddyPage: React.FC = () => {
             </div>
             <div className="ml-3">
               <p className="text-sm text-yellow-700">
-                We need your location to find nearby dog owners. Please enable location access in your browser.
+                We need your location to find nearby dog owners. Please enable location access in
+                your browser.
               </p>
             </div>
           </div>
         </div>
-        <button 
+        <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
         >
@@ -213,7 +194,7 @@ const FindBuddyPage: React.FC = () => {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">Find Walk Buddies Near You</h1>
-      
+
       <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
         <div className="flex">
           <div className="flex-shrink-0">
@@ -221,13 +202,13 @@ const FindBuddyPage: React.FC = () => {
           </div>
           <div className="ml-3">
             <p className="text-sm text-blue-700">
-              Showing dog owners who are currently online or were active in the last hour.
-              For privacy, exact locations are not shown until you become friends.
+              Showing dog owners who are currently online or were active in the last hour. For
+              privacy, exact locations are not shown until you become friends.
             </p>
           </div>
         </div>
       </div>
-      
+
       {nearbyUsers.length === 0 ? (
         <div className="text-center py-12">
           <span className="material-icons text-gray-400 text-5xl mb-4">search</span>
@@ -238,14 +219,21 @@ const FindBuddyPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {nearbyUsers.map(user => (
-            <div key={user.uid} className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition">
+          {nearbyUsers.map((user) => (
+            <div
+              key={user.uid}
+              className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition"
+            >
               <div className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center">
                     <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-200 mr-3">
                       {user.photoURL ? (
-                        <img src={user.photoURL} alt={user.displayName} className="h-full w-full object-cover" />
+                        <img
+                          src={user.photoURL}
+                          alt={user.displayName}
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center bg-blue-100 text-blue-500">
                           <span className="material-icons">person</span>
@@ -264,25 +252,34 @@ const FindBuddyPage: React.FC = () => {
                     {user.accountType === 'business' ? 'Business' : 'Personal'}
                   </div>
                 </div>
-                
+
                 {user.dogs.length > 0 && (
                   <div>
                     <h4 className="font-medium text-sm text-gray-600 mb-2">Dogs:</h4>
                     <div className="flex flex-wrap gap-2">
-                      {user.dogs.map(dog => (
-                        <div key={dog.id} className="flex items-center bg-gray-100 rounded px-2 py-1">
+                      {user.dogs.map((dog) => (
+                        <div
+                          key={dog.id}
+                          className="flex items-center bg-gray-100 rounded px-2 py-1"
+                        >
                           {dog.photoURL && (
                             <div className="h-6 w-6 rounded-full overflow-hidden mr-1">
-                              <img src={dog.photoURL} alt={dog.name} className="h-full w-full object-cover" />
+                              <img
+                                src={dog.photoURL}
+                                alt={dog.name}
+                                className="h-full w-full object-cover"
+                              />
                             </div>
                           )}
-                          <span className="text-sm">{dog.name} ({dog.breed})</span>
+                          <span className="text-sm">
+                            {dog.name} ({dog.breed})
+                          </span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
-                
+
                 <div className="mt-4 flex justify-end">
                   <button className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium">
                     <span className="material-icons text-sm mr-1">person_add</span>

@@ -7,14 +7,14 @@ const Authentication: React.FC = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const { login, register, loginWithGoogle } = useAuth();
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    
+
     try {
       if (isRegistering) {
         await register(email, password, accountType);
@@ -32,7 +32,7 @@ const Authentication: React.FC = () => {
   const handleGoogleAuth = async () => {
     setError('');
     setLoading(true);
-    
+
     try {
       await loginWithGoogle();
     } catch (error: any) {
@@ -45,16 +45,10 @@ const Authentication: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6">
-        {isRegistering ? 'Create Account' : 'Login'}
-      </h2>
-      
-      {error && (
-        <div className="w-full p-3 mb-4 bg-red-100 text-red-700 rounded">
-          {error}
-        </div>
-      )}
-      
+      <h2 className="text-2xl font-bold mb-6">{isRegistering ? 'Create Account' : 'Login'}</h2>
+
+      {error && <div className="w-full p-3 mb-4 bg-red-100 text-red-700 rounded">{error}</div>}
+
       <form onSubmit={handleEmailAuth} className="w-full">
         <input
           type="email"
@@ -64,7 +58,7 @@ const Authentication: React.FC = () => {
           className="w-full p-2 mb-4 border rounded"
           required
         />
-        
+
         <input
           type="password"
           placeholder="Password"
@@ -73,7 +67,7 @@ const Authentication: React.FC = () => {
           className="w-full p-2 mb-4 border rounded"
           required
         />
-        
+
         {isRegistering && (
           <div className="mb-4">
             <p className="mb-2">Account Type:</p>
@@ -89,7 +83,7 @@ const Authentication: React.FC = () => {
                 />
                 Personal Account
               </label>
-              
+
               <label className="flex items-center">
                 <input
                   type="radio"
@@ -104,7 +98,7 @@ const Authentication: React.FC = () => {
             </div>
           </div>
         )}
-        
+
         <button
           type="submit"
           disabled={loading}
@@ -113,11 +107,11 @@ const Authentication: React.FC = () => {
           {loading ? 'Processing...' : isRegistering ? 'Register' : 'Login'}
         </button>
       </form>
-      
+
       <div className="my-4 w-full text-center">
         <span className="text-gray-500">or</span>
       </div>
-      
+
       <button
         onClick={handleGoogleAuth}
         disabled={loading}
@@ -126,7 +120,7 @@ const Authentication: React.FC = () => {
         <span className="material-icons">login</span>
         Sign in with Google
       </button>
-      
+
       <p className="mt-4">
         {isRegistering ? 'Already have an account?' : "Don't have an account?"}
         <button
