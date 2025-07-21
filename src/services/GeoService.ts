@@ -74,7 +74,8 @@ export class GeoService {
   }
 
   /**
-   * Get nearby documents from a collection
+   * Get nearby documents from a collection, present geohashed cell and neighbors
+   * 
    * @param collectionName Collection to query
    * @param latitude Center latitude
    * @param longitude Center longitude
@@ -88,7 +89,7 @@ export class GeoService {
     latitude: number,
     longitude: number,
     radiusInKm: number,
-    limitCount: number = 100,
+    limitCount: number = 50,
     extraFilters: { field: string; operator: string; value: any }[] = [],
     lastDoc?: QueryDocumentSnapshot<T>,
     debug: boolean = false

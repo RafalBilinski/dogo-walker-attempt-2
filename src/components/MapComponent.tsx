@@ -483,14 +483,12 @@ const MapComponent: React.FC = () => {
           <Marker
             position={[selectedPosition.latitude, selectedPosition.longitude]}
             icon={defaultIcon}
-          >
-            {' '}
+          >            
             {/* User selected location marker */}
             <Popup>You are here</Popup>
           </Marker>
         ) : (
-          <Marker position={[userLocation.latitude, userLocation.longitude]} icon={defaultIcon}>
-            {' '}
+          <Marker position={[userLocation.latitude, userLocation.longitude]} icon={defaultIcon}>            
             {/* User location marker */}
             <Popup>You are here</Popup>
           </Marker>

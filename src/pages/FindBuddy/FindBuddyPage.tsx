@@ -1,20 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
-  collection,
-  query,
-  getDocs,
-  where,
-  limit,
-  GeoPoint,
-  getDoc,
-  doc,
   QueryDocumentSnapshot,
-  DocumentData
+  DocumentData,
+  GeoPoint
 } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import { useAuth } from '../contexts/AuthContext';
-import { NearbyUser } from '../types/index';
-import { GeoService } from '../services/GeoService';
+import { useAuth } from '../../contexts/AuthContext';
+import { NearbyUser } from '../../types/index';
+import { loadNearbyUsers } from './FindBuddyFunctionality';
 
 const FindBuddyPage: React.FC = () => {
   const [nearbyUsers, setNearbyUsers] = useState<NearbyUser[]>([]);
@@ -39,151 +31,20 @@ const FindBuddyPage: React.FC = () => {
     );
   }, []);
 
-  const loadNearbyUsers = async (isLoadMore = false) => {
-    if (!currentUser || !userLocation) {
-      console.log('[FindBuddyPage] Missing currentUser or userLocation:', { currentUser: !!currentUser, userLocation: !!userLocation });
-      return;
-    }
 
-    try {
-      console.log('[FindBuddyPage] Starting loadNearbyUsers, isLoadMore:', isLoadMore);
-      console.log('[FindBuddyPage] User location:', userLocation.latitude, userLocation.longitude);
-      
-      if (!isLoadMore) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
-      
-      // Update current user's location on initial load
-      if (!isLoadMore) {
-        console.log('[FindBuddyPage] Updating current user location');
-        await updateCurrentUserLocation();
-      }
-
-      // Get current timestamp and one hour ago for activity filter
-      const now = new Date();
-      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      console.log('[FindBuddyPage] Activity filter - looking for users active since:', oneHourAgo);
-
-      // Use GeoService to find nearby users with geohashing
-      const searchRadius = 20; // km - search for users within 20km
-      console.log('[FindBuddyPage] Searching for users within', searchRadius, 'km');
-      
-      const geoQueryResult = await GeoService.getNearbyLocations(
-        'userLocations',
-        userLocation.latitude,
-        userLocation.longitude,
-        searchRadius,
-        PAGE_SIZE,
-        [{ field: 'userId', operator: '!=', value: currentUser.uid }],
-        isLoadMore && lastDoc ? lastDoc : undefined,
-        true // Enable debug logging
-      );
-      
-      console.log('[FindBuddyPage] GeoService returned:', geoQueryResult.data.length, 'location records');
-      
-      // Save the last document for pagination
-      setLastDoc(geoQueryResult.lastDoc);
-      
-      // If we got fewer results than the page size, there are no more to load
-      if (geoQueryResult.data.length < PAGE_SIZE) {
-        setHasMore(false);
-      }
-
-      const nearbyUsersData: NearbyUser[] = [];
-      const userDetailsPromises = [];
-
-      // Process location data and fetch additional user details
-      console.log('[FindBuddyPage] Processing', geoQueryResult.data.length, 'location records');
-      
-      for (const locationData of geoQueryResult.data) {
-        const lastActive = locationData.lastUpdated?.toDate() || new Date(0);
-        console.log('[FindBuddyPage] User', locationData.userId, 'last active:', lastActive, 'vs cutoff:', oneHourAgo);
-
-        // Only include users who were active in the last hour
-        if (lastActive >= oneHourAgo) {
-          const userId = locationData.userId;
-          console.log('[FindBuddyPage] Including user', userId, 'in results');
-          
-          // Create a promise to fetch user details and dogs
-          userDetailsPromises.push(
-            (async () => {
-              const userDocRef = doc(db, 'users', userId);
-              const userDoc = await getDoc(userDocRef);
-              
-              if (userDoc.exists()) {
-                const userData = userDoc.data();
-                
-                // Calculate exact distance
-                const geoPoint = locationData.position as GeoPoint;
-                const distance = GeoService.calculateDistance(
-                  userLocation.latitude,
-                  userLocation.longitude,
-                  geoPoint.latitude,
-                  geoPoint.longitude
-                );
-                
-                // Fetch user's dogs
-                const dogsQuery = query(
-                  collection(db, 'dogs'),
-                  where('ownerId', '==', userId),
-                  limit(3)
-                );
-                const dogsSnapshot = await getDocs(dogsQuery);
-                const dogs = dogsSnapshot.docs.map((doc) => ({
-                  id: doc.id,
-                  ...doc.data(),
-                }));
-                
-                return {
-                  uid: userId,
-                  displayName: userData.displayName || 'Dog Owner',
-                  photoURL: userData.photoURL,
-                  distance,
-                  lastActive,
-                  accountType: userData.accountType,
-                  dogs: dogs as any[],
-                };
-              }
-              return null;
-            })()
-          );
-        }
-      }
-      
-      // Wait for all user details to be fetched
-      console.log('[FindBuddyPage] Fetching details for', userDetailsPromises.length, 'users');
-      const userResults = await Promise.all(userDetailsPromises);
-      
-      // Filter out null results and add to the nearby users array
-      const validResults = userResults.filter(result => result !== null) as NearbyUser[];
-      console.log('[FindBuddyPage] Got', validResults.length, 'valid user results after filtering');
-      
-      // Sort by distance
-      validResults.sort((a, b) => a.distance - b.distance);
-
-      if (isLoadMore) {
-        // Append to existing users
-        setNearbyUsers(prev => {
-          const newTotal = [...prev, ...validResults];
-          console.log('[FindBuddyPage] Appended users, total now:', newTotal.length);
-          return newTotal;
-        });
-      } else {
-        // Replace existing users
-        console.log('[FindBuddyPage] Setting', validResults.length, 'nearby users');
-        setNearbyUsers(validResults);
-      }
-    } catch (error) {
-      console.error('Error finding nearby users:', error);
-    } finally {
-      if (isLoadMore) {
-        setLoadingMore(false);
-      } else {
-        setLoading(false);
-      }
-    }
+  const handleLoadNearbyUsers = async (isLoadMore = false) => {
+    await loadNearbyUsers({
+      currentUser,
+      userLocation,
+      updateCurrentUserLocation,
+      lastDoc,
+      setLastDoc,
+      setHasMore,
+      setLoading,
+      setLoadingMore,
+      setNearbyUsers,
+      PAGE_SIZE
+    }, isLoadMore);
   };
 
   useEffect(() => {
@@ -191,14 +52,14 @@ const FindBuddyPage: React.FC = () => {
       // Reset pagination when location changes
       setLastDoc(null);
       setHasMore(true);
-      loadNearbyUsers();
+      handleLoadNearbyUsers();
     }
   }, [currentUser, userLocation]);
   
   // Load more users when user clicks the button
   const handleLoadMore = () => {
     if (hasMore && !loadingMore) {
-      loadNearbyUsers(true);
+      handleLoadNearbyUsers(true);
     }
   };
 
@@ -278,7 +139,7 @@ const FindBuddyPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Debug Information */}
+      {/* Debug Information 
       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
         <div className="flex">
           <div className="flex-shrink-0">
@@ -297,7 +158,7 @@ const FindBuddyPage: React.FC = () => {
             </p>
           </div>
         </div>
-      </div>
+      </div>*/}
     
       {nearbyUsers.length === 0 ? (
       <div className="bg-gray-50 p-6 rounded-lg text-center">

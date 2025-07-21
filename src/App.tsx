@@ -8,7 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
-import FindBuddyPage from './pages/FindBuddyPage';
+import FindBuddyPage from './pages/FindBuddy/FindBuddyPage';
 import SettingsPage from './components/SettingsPage';
 import MapComponent from './components/MapComponent';
 
