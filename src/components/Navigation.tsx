@@ -31,7 +31,7 @@ const Navigation: React.FC = () => {
         { path: '/login', label: 'Login', icon: 'login' },
       ];
 
-  console.log(currentUser);
+ 
   return (
     <nav className="bg-white border-b">
       <div className="container mx-auto px-4">

@@ -1,13 +1,22 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import {
-  onAuthStateChanged,
+import { auth, db, googleProvider } from '../firebase/config';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { 
+  GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  onAuthStateChanged,
 } from 'firebase/auth';
-import { auth, googleProvider, db } from '../firebase/config';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp, GeoPoint } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+  GeoPoint,
+} from 'firebase/firestore';
+import { GeoService } from '../services/GeoService';
 import { User, AuthContextType } from '../types';
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -154,10 +163,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!currentUser) return;
 
     try {
+      // Generate geohash for the location using our GeoService
+      const geohash = GeoService.geoPointToHash(userLocation);
+      
       const userLocationRef = doc(db, 'userLocations', currentUser.uid);
       const locationData = {
         userId: currentUser.uid,
         position: userLocation,
+        geohash, // Store the geohash for efficient queries
         lastUpdated: new Date(),
         // Add user metadata for easier querying
         displayName: userData?.displayName || 'Anonymous',
@@ -174,6 +187,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const userRef = doc(db, 'users', currentUser.uid);
         await updateDoc(userRef, {
           'location.position': userLocation,
+          'location.geohash': geohash, // Store geohash in user document too
           'location.lastUpdated': serverTimestamp(),
         });
       }

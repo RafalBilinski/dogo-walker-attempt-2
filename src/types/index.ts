@@ -11,6 +11,15 @@ type businessType =
   | 'petHotel'
   | 'other';
 
+  // Friendship related types
+export interface Friendship {
+  id: string;
+  userId: string;
+  friendId: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: Date;
+}
+
 // User related types
 export interface User {
   uid: string;
@@ -24,6 +33,7 @@ export interface User {
     position: GeoPoint & {};
     lastUpdated: Date;
   };
+  friendships?:[Friendship];
 }
 
 export interface AuthContextType {
@@ -86,17 +96,9 @@ export interface Location {
   type: 'walkingSpot' | 'service' | 'friend';
   name: string;
   position: GeoPoint & {};
+  geohash?: string; // Geohash of the position for efficient spatial queries
   description?: string;
   approved?: boolean;
   businessType?: businessType & {};
   userId?: string;
-}
-
-// Friendship related types
-export interface Friendship {
-  id: string;
-  userId: string;
-  friendId: string;
-  status: 'pending' | 'accepted' | 'rejected';
-  createdAt: Date;
 }
